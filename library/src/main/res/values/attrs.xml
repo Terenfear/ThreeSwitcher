@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="ThreeSwitcher">
+        <attr name="tw_textLeft" format="string" />
+        <attr name="tw_textCenter" format="string" />
+        <attr name="tw_textRight" format="string" />
+
+        <attr name="tw_state" format="enum">
+            <enum name="left" value="0" />
+            <enum name="center" value="1" />
+            <enum name="right" value="2" />
+        </attr>
+
+        <attr name="tw_textColor" format="color" />
+        <attr name="tw_textColorHighlighted" format="color" />
+        <attr name="tw_trackColor" format="color" />
+        <attr name="tw_thumbColor" format="color" />
+        <attr name="tw_shadowColor" format="color" />
+
+        <attr name="tw_textSize" format="dimension" />
+        <attr name="tw_textMarginLeft" format="dimension" />
+        <attr name="tw_textMarginRight" format="dimension" />
+        <attr name="tw_textMarginTop" format="dimension" />
+        <attr name="tw_textMarginBottom" format="dimension" />
+        <attr name="tw_shadowRadius" format="dimension" />
+        <attr name="tw_cornersRadius" format="dimension" />
+    </declare-styleable>
+</resources>
