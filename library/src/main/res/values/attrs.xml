@@ -16,6 +16,7 @@
         <attr name="tw_trackColor" format="color" />
         <attr name="tw_thumbColor" format="color" />
         <attr name="tw_shadowColor" format="color" />
+        <attr name="tw_rippleColor" format="color" />
 
         <attr name="tw_textSize" format="dimension" />
         <attr name="tw_textMarginLeft" format="dimension" />

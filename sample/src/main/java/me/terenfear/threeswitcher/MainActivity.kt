@@ -1,7 +1,7 @@
 package me.terenfear.threeswitcher
 
+import android.graphics.Typeface
 import android.os.Bundle
-import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import kotlinx.android.synthetic.main.activity_main.*
 
@@ -11,7 +11,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        threeSwitcher.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+        threeSwitcher.setTypeface(Typeface.createFromAsset(assets, "fonts/Montserrat-Bold.ttf"))
 
         text.text = "From initial view state: ${threeSwitcher.state}"
         threeSwitcher.onStateChangedListener = { v, s ->

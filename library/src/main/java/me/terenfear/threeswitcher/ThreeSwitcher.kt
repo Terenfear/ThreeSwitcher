@@ -10,19 +10,22 @@ import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.util.AttributeSet
+import android.util.Log
 import android.util.Property
 import android.view.MotionEvent
 import android.view.SoundEffectConstants
 import android.view.View
 import android.view.ViewConfiguration
+import android.view.animation.AccelerateInterpolator
+import android.view.animation.LinearInterpolator
 import androidx.annotation.FloatRange
+import androidx.core.animation.doOnEnd
 import androidx.core.content.withStyledAttributes
+import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.withSave
 import androidx.core.graphics.withTranslation
 import me.terenfear.threeswitcher.library.R
-import kotlin.math.abs
-import kotlin.math.ceil
-import kotlin.math.max
+import kotlin.math.*
 
 /**
  * Created by Terenfear on 21.01.2020.
@@ -41,21 +44,18 @@ class ThreeSwitcher @JvmOverloads constructor(
     var textLeft: String? = State.LEFT.toString()
         set(value) {
             field = value
-            progressAnimator?.cancel()
             requestLayout()
             invalidate()
         }
     var textCenter: String? = State.CENTER.toString()
         set(value) {
             field = value
-            progressAnimator?.cancel()
             requestLayout()
             invalidate()
         }
     var textRight: String? = State.RIGHT.toString()
         set(value) {
             field = value
-            progressAnimator?.cancel()
             requestLayout()
             invalidate()
         }
@@ -102,6 +102,7 @@ class ThreeSwitcher @JvmOverloads constructor(
     var cornersRadius: Float = 0f
         set(value) {
             field = value
+            updateThumbRectPath(field)
             invalidate()
         }
 
@@ -135,6 +136,19 @@ class ThreeSwitcher @JvmOverloads constructor(
             thumbPaint.setShadowLayer(shadowRadius, 0f, 0f, field)
             invalidate()
         }
+    var rippleColor: Int = context.controlHighlightColor
+        set(value) {
+            field = value
+            ripplePaint.color = ColorUtils.setAlphaComponent(rippleColor, rippleAlpha)
+            invalidate()
+        }
+
+    fun setTypeface(typeface: Typeface) {
+        textPaint.typeface = typeface
+        textPaintHighlighted.typeface = typeface
+        requestLayout()
+        invalidate()
+    }
 
     // inner properties
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
@@ -146,6 +160,9 @@ class ThreeSwitcher @JvmOverloads constructor(
     private var touchStartY: Float = 0f
     private var touchLastX: Float = 0f
 
+    private var rippleStartThumbX: Float = 0f
+    private var rippleStartThumbY: Float = 0f
+
     private lateinit var textLeftLayout: Layout
     private lateinit var textCenterLayout: Layout
     private lateinit var textRightLayout: Layout
@@ -153,12 +170,36 @@ class ThreeSwitcher @JvmOverloads constructor(
     private lateinit var textCenterHighlightedLayout: Layout
     private lateinit var textRightHighlightedLayout: Layout
 
+    // these values are calculated during onMeasure
     private var availableTextHeight: Float = 0f
     private var leftEmptySpace: Float = 0f
     private var rightEmptySpace: Float = 0f
     private var topEmptySpace: Float = 0f
     private var bottomEmptySpace: Float = 0f
+    private var trackWidth: Float = 0f
+    private var trackHeight: Float = 0f
+    private var thumbWidth: Float = 0f
+    private var thumbHeight: Float = 0f
+    private var maxRippleRadius: Float = 0f
 
+    // it's updated during onMeasure and when the progress changes
+    private var thumbLeft: Float = 0f
+    private val thumbRight: Float
+        get() = thumbLeft + thumbWidth
+
+    private var isThumbPressed: Boolean = false
+
+    private var rippleRadius: Float = 0f
+        set(value) {
+            field = value
+            invalidate()
+        }
+    private var rippleAlpha: Int = Color.alpha(rippleColor)
+    set(value) {
+        field = value
+        ripplePaint.color = ColorUtils.setAlphaComponent(rippleColor, rippleAlpha)
+        invalidate()
+    }
 
     private val trackPaint = Paint().apply {
         style = Paint.Style.FILL
@@ -175,22 +216,30 @@ class ThreeSwitcher @JvmOverloads constructor(
         textSize = this@ThreeSwitcher.textSize
         color = textColor
     }
-    private val textPaintHighlighted = TextPaint().apply {
-        isAntiAlias = true
-        style = Paint.Style.FILL_AND_STROKE
-        textSize = this@ThreeSwitcher.textSize
+    private val textPaintHighlighted = TextPaint(textPaint).apply {
         color = textColorHighlighted
     }
+    private val ripplePaint = Paint()
+        .apply {
+            style = Paint.Style.FILL_AND_STROKE
+            color = ColorUtils.setAlphaComponent(rippleColor, rippleAlpha)
+        }
 
     private val trackRect = RectF()
     private val thumbRect = RectF()
+    private val thumbRectPath = Path()
 
     private var progressAnimator: ObjectAnimator? = null
+    private var rippleExpandAnimator: ObjectAnimator? = null
+    private var rippleFadeAnimator: ObjectAnimator? = null
+    private var rippleExpandInterpolator = AccelerateInterpolator()
+    private var rippleFadeInterpolator = LinearInterpolator()
 
     @FloatRange(from = MIN_VIEW_PROGRESS, to = MAX_VIEW_PROGRESS)
     private var progress: Float = State.LEFT.medianProgress
         set(value) {
             field = value.coerceIn(MIN_VIEW_PROGRESS.toFloat(), MAX_VIEW_PROGRESS.toFloat())
+            updateThumbRect()
             invalidate()
         }
 
@@ -239,6 +288,7 @@ class ThreeSwitcher @JvmOverloads constructor(
             textColorHighlighted =
                 getColor(R.styleable.ThreeSwitcher_tw_textColorHighlighted, textColorHighlighted)
             shadowColor = getColor(R.styleable.ThreeSwitcher_tw_shadowColor, shadowColor)
+            rippleColor = getColor(R.styleable.ThreeSwitcher_tw_rippleColor, rippleColor)
         }
 
         context.withStyledAttributes(
@@ -273,6 +323,10 @@ class ThreeSwitcher @JvmOverloads constructor(
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        progressAnimator?.cancel()
+        rippleExpandAnimator?.cancel()
+        rippleFadeAnimator?.cancel()
+
         updateTextLayouts()
 
         leftEmptySpace = shadowRadius + paddingLeft.toFloat()
@@ -282,17 +336,24 @@ class ThreeSwitcher @JvmOverloads constructor(
 
         val width = measureWidth(widthMeasureSpec)
         val height = measureHeight(heightMeasureSpec)
+
+        trackWidth = width - leftEmptySpace - rightEmptySpace
+        trackHeight = height - topEmptySpace - bottomEmptySpace
+        thumbWidth = trackWidth / 3
+        thumbHeight = trackHeight
+        trackRect.set(0f, 0f, trackWidth, trackHeight)
+        maxRippleRadius = sqrt(thumbWidth.pow(2) + thumbHeight.pow(2))
+        updateThumbRect()
+
         setMeasuredDimension(width, height)
     }
 
     override fun onDraw(canvas: Canvas?) {
+        Log.d("ThreeSwitcher", "onDraw")
         super.onDraw(canvas)
         if (canvas != null) {
 
-            val trackWidth = width - leftEmptySpace - rightEmptySpace
-            val trackHeight = height - topEmptySpace - bottomEmptySpace
             canvas.withTranslation(leftEmptySpace, topEmptySpace) {
-                trackRect.set(0f, 0f, trackWidth, trackHeight)
                 canvas.drawRoundRect(
                     trackRect,
                     cornersRadius,
@@ -321,11 +382,7 @@ class ThreeSwitcher @JvmOverloads constructor(
                 textRightLayout.draw(this)
             }
 
-            val thumbWidth = trackWidth / 3f
-            val thumbLeft =
-                (trackWidth * progress - thumbWidth / 2).coerceIn(0f, trackWidth - thumbWidth)
             canvas.withTranslation(leftEmptySpace, topEmptySpace) {
-                thumbRect.set(thumbLeft, 0f, thumbLeft + thumbWidth, trackHeight)
                 canvas.drawRoundRect(
                     thumbRect,
                     cornersRadius,
@@ -336,29 +393,30 @@ class ThreeSwitcher @JvmOverloads constructor(
 
             canvas.withSave {
                 canvas.translate(leftEmptySpace, topEmptySpace)
-                // TODO (28/01/2020): clip round rect
-                canvas.clipRect(
-                    thumbLeft,
-                    0f,
-                    thumbLeft + thumbWidth,
-                    trackHeight,
-                    Region.Op.INTERSECT
-                )
+                canvas.clipPath(thumbRectPath, Region.Op.INTERSECT)
 
-                canvas.translate(textMarginLeft, textMarginTop)
-                canvas.clipRect(
-                    0f,
-                    0f,
-                    textWidthWithInnerGaps,
-                    availableTextHeight,
-                    Region.Op.INTERSECT
-                )
-                canvas.translate(0f, (availableTextHeight - textLeftLayout.height) / 2)
-                textLeftHighlightedLayout.draw(this)
-                canvas.translate(textLeftHighlightedLayout.width.toFloat() + textGap, 0f)
-                textCenterHighlightedLayout.draw(this)
-                canvas.translate(textCenterHighlightedLayout.width.toFloat() + textGap, 0f)
-                textRightHighlightedLayout.draw(this)
+                canvas.withSave {
+                    canvas.translate(textMarginLeft, textMarginTop)
+                    canvas.clipRect(
+                        0f,
+                        0f,
+                        textWidthWithInnerGaps,
+                        availableTextHeight,
+                        Region.Op.INTERSECT
+                    )
+                    canvas.translate(0f, (availableTextHeight - textLeftLayout.height) / 2)
+                    textLeftHighlightedLayout.draw(this)
+                    canvas.translate(textLeftHighlightedLayout.width.toFloat() + textGap, 0f)
+                    textCenterHighlightedLayout.draw(this)
+                    canvas.translate(textCenterHighlightedLayout.width.toFloat() + textGap, 0f)
+                    textRightHighlightedLayout.draw(this)
+                }
+
+                // ripple start coordinates are relative to thumb, so we translate canvas to the thumb pos
+                canvas.translate(thumbLeft, 0f)
+                if (rippleRadius > 0f && rippleAlpha > 0) {
+                    canvas.drawCircle(rippleStartThumbX, rippleStartThumbY, rippleRadius, ripplePaint)
+                }
             }
         }
     }
@@ -375,7 +433,14 @@ class ThreeSwitcher @JvmOverloads constructor(
                 touchStartX = event.x
                 touchStartY = event.y
                 touchLastX = touchStartX
+
                 isPressed = true
+                if (thumbRect.contains(touchStartX, touchStartY)) {
+                    isThumbPressed = true
+                    rippleStartThumbX = touchStartX - thumbRect.left
+                    rippleStartThumbY = touchStartY - thumbRect.top
+                    animateRippleExpand()
+                }
             }
             MotionEvent.ACTION_MOVE -> {
                 progressAnimator?.cancel()
@@ -400,14 +465,17 @@ class ThreeSwitcher @JvmOverloads constructor(
             MotionEvent.ACTION_UP -> {
                 isCatchingScrolls = false
                 isPressed = false
+                isThumbPressed = false
+
+                if (rippleRadius == maxRippleRadius) {
+                    animateRippleFade()
+                }
+
                 val time = event.eventTime - event.downTime.toFloat()
                 // detect whether movement is too short and too fast to be considered a scrolling event
                 if (abs(deltaX) < touchSlop && abs(deltaY) < touchSlop && time < clickTimeout) {
                     // TODO (21/01/2020): get rid of duplicate code
-                    val nextState =
-                        State.fromProgress(
-                            touchStartX / width
-                        )
+                    val nextState = State.fromProgress(touchStartX / width)
                     if (nextState != state) {
                         setState(nextState)
                     } else {
@@ -555,12 +623,75 @@ class ThreeSwitcher @JvmOverloads constructor(
     private fun getTextPaintHeight(): Float = (-textPaint.ascent() + textPaint.descent())
 
     private fun animateToState(state: State) {
-        progressAnimator = ObjectAnimator.ofFloat(this,
-            THUMB_POS, state.medianProgress)
+        progressAnimator = ObjectAnimator.ofFloat(
+            this,
+            THUMB_POS,
+            state.medianProgress
+        )
             .apply {
                 setAutoCancel(true)
+                duration = PROGRESS_ANIM_DURATION_MS
                 start()
             }
+    }
+
+    private fun animateRippleExpand() {
+        rippleFadeAnimator?.cancel()
+        resetRipple()
+        rippleExpandAnimator = ObjectAnimator.ofFloat(
+            this,
+            RIPPLE_RADIUS,
+            maxRippleRadius
+        )
+            .apply {
+                doOnEnd {
+                    if (!isThumbPressed) {
+                        animateRippleFade()
+                    }
+                }
+                setAutoCancel(true)
+                duration = RIPPLE_EXPAND_DURATION_MS
+                interpolator = rippleExpandInterpolator
+                start()
+            }
+    }
+
+    private fun animateRippleFade() {
+        rippleExpandAnimator?.cancel()
+        rippleFadeAnimator = ObjectAnimator.ofInt(
+            this,
+            RIPPLE_ALPHA,
+            0
+        )
+            .apply {
+                doOnEnd {
+                    resetRipple()
+                }
+                setAutoCancel(true)
+                duration = RIPPLE_FADE_DURATION_MS
+                interpolator = rippleFadeInterpolator
+                start()
+            }
+    }
+
+    private fun resetRipple() {
+        rippleRadius = 0f
+        rippleAlpha = Color.alpha(rippleColor)
+        ripplePaint.color = ColorUtils.setAlphaComponent(rippleColor, rippleAlpha)
+    }
+
+    private fun updateThumbRect() {
+        thumbLeft = (trackWidth * progress - thumbWidth / 2).coerceIn(0f, trackWidth - thumbWidth)
+        thumbRect.set(thumbLeft, 0f, thumbRight, thumbHeight)
+        updateThumbRectPath(cornersRadius)
+    }
+
+    private fun updateThumbRectPath(radius: Float) {
+        thumbRectPath.apply {
+            reset()
+            addRoundRect(thumbRect, radius, radius, Path.Direction.CW)
+            close()
+        }
     }
 
     private fun catchView() {
@@ -603,6 +734,9 @@ class ThreeSwitcher @JvmOverloads constructor(
     }
 
     companion object {
+        const val PROGRESS_ANIM_DURATION_MS = 300L
+        const val RIPPLE_EXPAND_DURATION_MS = 200L
+        const val RIPPLE_FADE_DURATION_MS = 200L
         const val MIN_VIEW_PROGRESS = 0.0
         const val MAX_VIEW_PROGRESS = 1.0
         const val THIRD_OF_VIEW_PROGRESS = (MAX_VIEW_PROGRESS - MIN_VIEW_PROGRESS) / 3
@@ -614,6 +748,26 @@ class ThreeSwitcher @JvmOverloads constructor(
 
                 override fun set(switch: ThreeSwitcher, value: Float) {
                     switch.progress = value
+                }
+            }
+        private val RIPPLE_RADIUS: Property<ThreeSwitcher, Float> =
+            object : Property<ThreeSwitcher, Float>(Float::class.java, "rippleRadius") {
+                override fun get(switch: ThreeSwitcher): Float {
+                    return switch.rippleRadius
+                }
+
+                override fun set(switch: ThreeSwitcher, value: Float) {
+                    switch.rippleRadius = value
+                }
+            }
+        private val RIPPLE_ALPHA: Property<ThreeSwitcher, Int> =
+            object : Property<ThreeSwitcher, Int>(Int::class.java, "rippleAlpha") {
+                override fun get(switch: ThreeSwitcher): Int {
+                    return switch.rippleAlpha
+                }
+
+                override fun set(switch: ThreeSwitcher, value: Int) {
+                    switch.rippleAlpha = value
                 }
             }
     }
