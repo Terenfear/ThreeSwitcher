@@ -195,17 +195,19 @@ class ThreeSwitcher @JvmOverloads constructor(
             invalidate()
         }
     private var rippleAlpha: Int = Color.alpha(rippleColor)
-    set(value) {
-        field = value
-        ripplePaint.color = ColorUtils.setAlphaComponent(rippleColor, rippleAlpha)
-        invalidate()
-    }
+        set(value) {
+            field = value
+            ripplePaint.color = ColorUtils.setAlphaComponent(rippleColor, rippleAlpha)
+            invalidate()
+        }
 
     private val trackPaint = Paint().apply {
+        isAntiAlias = true
         style = Paint.Style.FILL
         color = trackColor
     }
     private val thumbPaint = Paint().apply {
+        isAntiAlias = true
         style = Paint.Style.FILL
         color = thumbColor
         setShadowLayer(shadowRadius, 0f, 0f, shadowColor)
@@ -219,11 +221,11 @@ class ThreeSwitcher @JvmOverloads constructor(
     private val textPaintHighlighted = TextPaint(textPaint).apply {
         color = textColorHighlighted
     }
-    private val ripplePaint = Paint()
-        .apply {
-            style = Paint.Style.FILL_AND_STROKE
-            color = ColorUtils.setAlphaComponent(rippleColor, rippleAlpha)
-        }
+    private val ripplePaint = Paint().apply {
+        isAntiAlias = true
+        style = Paint.Style.FILL_AND_STROKE
+        color = ColorUtils.setAlphaComponent(rippleColor, rippleAlpha)
+    }
 
     private val trackRect = RectF()
     private val thumbRect = RectF()
@@ -415,7 +417,12 @@ class ThreeSwitcher @JvmOverloads constructor(
                 // ripple start coordinates are relative to thumb, so we translate canvas to the thumb pos
                 canvas.translate(thumbLeft, 0f)
                 if (rippleRadius > 0f && rippleAlpha > 0) {
-                    canvas.drawCircle(rippleStartThumbX, rippleStartThumbY, rippleRadius, ripplePaint)
+                    canvas.drawCircle(
+                        rippleStartThumbX,
+                        rippleStartThumbY,
+                        rippleRadius,
+                        ripplePaint
+                    )
                 }
             }
         }
@@ -437,29 +444,31 @@ class ThreeSwitcher @JvmOverloads constructor(
                 isPressed = true
                 if (thumbRect.contains(touchStartX, touchStartY)) {
                     isThumbPressed = true
-                    rippleStartThumbX = touchStartX - thumbRect.left
-                    rippleStartThumbY = touchStartY - thumbRect.top
+                    rippleStartThumbX = touchStartX - thumbRect.left - leftEmptySpace
+                    rippleStartThumbY = touchStartY - thumbRect.top - topEmptySpace
                     animateRippleExpand()
                 }
             }
             MotionEvent.ACTION_MOVE -> {
-                progressAnimator?.cancel()
-                val x = event.x
-                progress += (x - touchLastX) / width
-                // when delta reaches touchSlop, most likely the parent will intercept the event
-                // and treat all further movement as scrolling. we don't want it, so we try to disallow
-                // parent's interception. but only if movement is horizontal, vertical movement is
-                // still can (and should) be intercepted
-                // in short: horizontal scrolling won't work while we dragging, but vertical will work fine
-                // TODO (21/01/2020): this is how I think it works, but I need to test whether this is correct
-                if (!isCatchingScrolls && (abs(deltaX) > touchSlop / 2 || abs(deltaY) > touchSlop / 2)) {
-                    if (deltaY == 0f || abs(deltaX) > abs(deltaY)) {
-                        catchView()
-                    } else if (abs(deltaY) > abs(deltaX)) {
-                        return false
+                if (isThumbPressed) {
+                    progressAnimator?.cancel()
+                    val x = event.x
+                    progress += (x - touchLastX) / width
+                    // when delta reaches touchSlop, most likely the parent will intercept the event
+                    // and treat all further movement as scrolling. we don't want it, so we try to disallow
+                    // parent's interception. but only if movement is horizontal, vertical movement is
+                    // still can (and should) be intercepted
+                    // in short: horizontal scrolling won't work while we dragging, but vertical will work fine
+                    // TODO (21/01/2020): this is how I think it works, but I need to test whether this is correct
+                    if (!isCatchingScrolls && (abs(deltaX) > touchSlop / 2 || abs(deltaY) > touchSlop / 2)) {
+                        if (deltaY == 0f || abs(deltaX) > abs(deltaY)) {
+                            catchView()
+                        } else if (abs(deltaY) > abs(deltaX)) {
+                            return false
+                        }
                     }
+                    touchLastX = x
                 }
-                touchLastX = x
             }
             MotionEvent.ACTION_CANCEL,
             MotionEvent.ACTION_UP -> {
