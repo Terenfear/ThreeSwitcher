@@ -351,7 +351,6 @@ class ThreeSwitcher @JvmOverloads constructor(
     }
 
     override fun onDraw(canvas: Canvas?) {
-        Log.d("ThreeSwitcher", "onDraw")
         super.onDraw(canvas)
         if (canvas != null) {
 
