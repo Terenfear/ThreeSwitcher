@@ -138,6 +138,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="70dp"
+        android:elevation="5dp"
         app:tw_textLeft="WEEK"
         app:tw_textCenter="MONTH"
         app:tw_textRight="ALL TIME"

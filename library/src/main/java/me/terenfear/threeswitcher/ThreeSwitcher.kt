@@ -4,6 +4,7 @@ import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.*
+import android.os.Build
 import android.os.Parcel
 import android.os.Parcelable
 import android.text.Layout
@@ -12,10 +13,7 @@ import android.text.TextPaint
 import android.util.AttributeSet
 import android.util.Log
 import android.util.Property
-import android.view.MotionEvent
-import android.view.SoundEffectConstants
-import android.view.View
-import android.view.ViewConfiguration
+import android.view.*
 import android.view.animation.AccelerateInterpolator
 import android.view.animation.LinearInterpolator
 import androidx.annotation.FloatRange
@@ -348,6 +346,25 @@ class ThreeSwitcher @JvmOverloads constructor(
         updateThumbRect()
 
         setMeasuredDimension(width, height)
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            outlineProvider = object : ViewOutlineProvider() {
+                override fun getOutline(view: View, outline: Outline) {
+                    val leftInt = leftEmptySpace.toInt()
+                    val topInt = topEmptySpace.toInt()
+                    outline.setRoundRect(
+                        leftInt,
+                        topInt,
+                        leftInt + trackRect.width().toInt(),
+                        topInt + trackRect.height().toInt(),
+                        cornersRadius
+                    )
+                }
+            }
+        }
     }
 
     override fun onDraw(canvas: Canvas?) {
