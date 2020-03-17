@@ -11,7 +11,6 @@ import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.util.AttributeSet
-import android.util.Log
 import android.util.Property
 import android.view.*
 import android.view.animation.AccelerateInterpolator
@@ -40,12 +39,6 @@ class ThreeSwitcher @JvmOverloads constructor(
     var onStateChangedListener: OnStateChangedListener? = null
 
     var textLeft: String? = State.LEFT.toString()
-        set(value) {
-            field = value
-            requestLayout()
-            invalidate()
-        }
-    var textCenter: String? = State.CENTER.toString()
         set(value) {
             field = value
             requestLayout()
@@ -110,10 +103,16 @@ class ThreeSwitcher @JvmOverloads constructor(
             trackPaint.color = field
             invalidate()
         }
-    var thumbColor: Int = context.accentColor
+    var thumbColorStart: Int = context.accentColor
         set(value) {
             field = value
-            thumbPaint.color = field
+            updateThumbGradient()
+            invalidate()
+        }
+    var thumbColorEnd: Int = context.accentColor
+        set(value) {
+            field = value
+            updateThumbGradient()
             invalidate()
         }
     var textColor: Int = context.accentColor
@@ -162,10 +161,8 @@ class ThreeSwitcher @JvmOverloads constructor(
     private var rippleStartThumbY: Float = 0f
 
     private lateinit var textLeftLayout: Layout
-    private lateinit var textCenterLayout: Layout
     private lateinit var textRightLayout: Layout
     private lateinit var textLeftHighlightedLayout: Layout
-    private lateinit var textCenterHighlightedLayout: Layout
     private lateinit var textRightHighlightedLayout: Layout
 
     // these values are calculated during onMeasure
@@ -207,7 +204,6 @@ class ThreeSwitcher @JvmOverloads constructor(
     private val thumbPaint = Paint().apply {
         isAntiAlias = true
         style = Paint.Style.FILL
-        color = thumbColor
         setShadowLayer(shadowRadius, 0f, 0f, shadowColor)
     }
     private val textPaint = TextPaint().apply {
@@ -240,6 +236,7 @@ class ThreeSwitcher @JvmOverloads constructor(
         set(value) {
             field = value.coerceIn(MIN_VIEW_PROGRESS.toFloat(), MAX_VIEW_PROGRESS.toFloat())
             updateThumbRect()
+            updateThumbGradient()
             invalidate()
         }
 
@@ -250,7 +247,6 @@ class ThreeSwitcher @JvmOverloads constructor(
                 .let(this@ThreeSwitcher::setStateNoEventImmediately)
 
             textLeft = getString(R.styleable.ThreeSwitcher_tw_textLeft) ?: textLeft
-            textCenter = getString(R.styleable.ThreeSwitcher_tw_textCenter) ?: textCenter
             textRight = getString(R.styleable.ThreeSwitcher_tw_textRight) ?: textRight
 
             textMarginLeft = getDimensionPixelSize(
@@ -283,7 +279,9 @@ class ThreeSwitcher @JvmOverloads constructor(
             ).toFloat()
 
             trackColor = getColor(R.styleable.ThreeSwitcher_tw_trackColor, trackColor)
-            thumbColor = getColor(R.styleable.ThreeSwitcher_tw_thumbColor, thumbColor)
+            thumbColorStart =
+                getColor(R.styleable.ThreeSwitcher_tw_thumbColorStart, thumbColorStart)
+            thumbColorEnd = getColor(R.styleable.ThreeSwitcher_tw_thumbColorEnd, thumbColorEnd)
             textColor = getColor(R.styleable.ThreeSwitcher_tw_textColor, textColor)
             textColorHighlighted =
                 getColor(R.styleable.ThreeSwitcher_tw_textColorHighlighted, textColorHighlighted)
@@ -339,11 +337,12 @@ class ThreeSwitcher @JvmOverloads constructor(
 
         trackWidth = width - leftEmptySpace - rightEmptySpace
         trackHeight = height - topEmptySpace - bottomEmptySpace
-        thumbWidth = trackWidth / 3
+        thumbWidth = trackWidth / 2
         thumbHeight = trackHeight
         trackRect.set(0f, 0f, trackWidth, trackHeight)
         maxRippleRadius = sqrt(thumbWidth.pow(2) + thumbHeight.pow(2))
         updateThumbRect()
+        updateThumbGradient()
 
         setMeasuredDimension(width, height)
     }
@@ -381,22 +380,20 @@ class ThreeSwitcher @JvmOverloads constructor(
             }
 
             val textGap = textMarginLeft + textMarginRight
-            val textWidthWithInnerGaps =
-                (textLeftLayout.width + textCenterLayout.width + textRightLayout.width + textGap * 2)
+            val textWidthWithInnerGap =
+                (textLeftLayout.width + textRightLayout.width + textGap)
             canvas.withSave {
                 canvas.translate(leftEmptySpace + textMarginLeft, topEmptySpace + textMarginTop)
                 canvas.clipRect(
                     0f,
                     0f,
-                    textWidthWithInnerGaps,
+                    textWidthWithInnerGap,
                     availableTextHeight,
                     Region.Op.INTERSECT
                 )
                 canvas.translate(0f, (availableTextHeight - textLeftLayout.height) / 2)
                 textLeftLayout.draw(this)
                 canvas.translate(textLeftLayout.width.toFloat() + textGap, 0f)
-                textCenterLayout.draw(this)
-                canvas.translate(textCenterLayout.width.toFloat() + textGap, 0f)
                 textRightLayout.draw(this)
             }
 
@@ -418,15 +415,13 @@ class ThreeSwitcher @JvmOverloads constructor(
                     canvas.clipRect(
                         0f,
                         0f,
-                        textWidthWithInnerGaps,
+                        textWidthWithInnerGap,
                         availableTextHeight,
                         Region.Op.INTERSECT
                     )
                     canvas.translate(0f, (availableTextHeight - textLeftLayout.height) / 2)
                     textLeftHighlightedLayout.draw(this)
                     canvas.translate(textLeftHighlightedLayout.width.toFloat() + textGap, 0f)
-                    textCenterHighlightedLayout.draw(this)
-                    canvas.translate(textCenterHighlightedLayout.width.toFloat() + textGap, 0f)
                     textRightHighlightedLayout.draw(this)
                 }
 
@@ -563,20 +558,15 @@ class ThreeSwitcher @JvmOverloads constructor(
     private fun updateTextLayouts(desiredWidth: Int? = null) {
         val width = desiredWidth ?: calcMaxTextLength()
         textLeftLayout = getTextLayout(textLeft, textPaint, width)
-        textCenterLayout = getTextLayout(textCenter, textPaint, width)
         textRightLayout = getTextLayout(textRight, textPaint, width)
         textLeftHighlightedLayout = getTextLayout(textLeft, textPaintHighlighted, width)
-        textCenterHighlightedLayout = getTextLayout(textCenter, textPaintHighlighted, width)
         textRightHighlightedLayout = getTextLayout(textRight, textPaintHighlighted, width)
     }
 
     private fun calcMaxTextLength(): Int {
         return max(
             calcTextWidth(textRight, textPaint),
-            max(
-                calcTextWidth(textLeft, textPaint),
-                calcTextWidth(textCenter, textPaint)
-            )
+            calcTextWidth(textLeft, textPaint)
         )
     }
 
@@ -605,12 +595,12 @@ class ThreeSwitcher @JvmOverloads constructor(
         val requestedWidth = MeasureSpec.getSize(widthMeasureSpec)
         val emptySpaceWidth = calcEmptySpaceWidth()
         return if (widthMode == MeasureSpec.EXACTLY) {
-            updateTextLayouts(((requestedWidth - emptySpaceWidth) / 3).toInt())
+            updateTextLayouts(((requestedWidth - emptySpaceWidth) / 2).toInt())
             requestedWidth
         } else {
-            val calculatedWidth: Int = (textLeftLayout.width * 3 + emptySpaceWidth).toInt()
+            val calculatedWidth: Int = (textLeftLayout.width * 2 + emptySpaceWidth).toInt()
             if (widthMode == MeasureSpec.AT_MOST && calculatedWidth > requestedWidth) {
-                updateTextLayouts(((requestedWidth - emptySpaceWidth) / 3).toInt())
+                updateTextLayouts(((requestedWidth - emptySpaceWidth) / 2).toInt())
                 requestedWidth
             } else {
                 calculatedWidth
@@ -619,7 +609,7 @@ class ThreeSwitcher @JvmOverloads constructor(
     }
 
     private fun calcEmptySpaceWidth() =
-        paddingLeft + paddingRight + textMarginLeft * 3 + textMarginRight * 3 + shadowRadius * 2
+        paddingLeft + paddingRight + textMarginLeft * 2 + textMarginRight * 2 + shadowRadius * 2
 
     private fun measureHeight(heightMeasureSpec: Int): Int {
         val heightMode = MeasureSpec.getMode(heightMeasureSpec)
@@ -649,10 +639,10 @@ class ThreeSwitcher @JvmOverloads constructor(
 
     private fun animateToState(state: State) {
         progressAnimator = ObjectAnimator.ofFloat(
-            this,
-            THUMB_POS,
-            state.medianProgress
-        )
+                this,
+                THUMB_POS,
+                state.medianProgress
+            )
             .apply {
                 setAutoCancel(true)
                 duration = PROGRESS_ANIM_DURATION_MS
@@ -664,10 +654,10 @@ class ThreeSwitcher @JvmOverloads constructor(
         rippleFadeAnimator?.cancel()
         resetRipple()
         rippleExpandAnimator = ObjectAnimator.ofFloat(
-            this,
-            RIPPLE_RADIUS,
-            maxRippleRadius
-        )
+                this,
+                RIPPLE_RADIUS,
+                maxRippleRadius
+            )
             .apply {
                 doOnEnd {
                     if (!isThumbPressed) {
@@ -684,10 +674,10 @@ class ThreeSwitcher @JvmOverloads constructor(
     private fun animateRippleFade() {
         rippleExpandAnimator?.cancel()
         rippleFadeAnimator = ObjectAnimator.ofInt(
-            this,
-            RIPPLE_ALPHA,
-            0
-        )
+                this,
+                RIPPLE_ALPHA,
+                0
+            )
             .apply {
                 doOnEnd {
                     resetRipple()
@@ -717,6 +707,18 @@ class ThreeSwitcher @JvmOverloads constructor(
             addRoundRect(thumbRect, radius, radius, Path.Direction.CW)
             close()
         }
+    }
+
+    private fun updateThumbGradient() {
+        thumbPaint.shader = LinearGradient(
+            thumbRect.left,
+            0f,
+            thumbRect.right,
+            0f,
+            thumbColorStart,
+            thumbColorEnd,
+            Shader.TileMode.REPEAT
+        )
     }
 
     private fun catchView() {
@@ -764,7 +766,7 @@ class ThreeSwitcher @JvmOverloads constructor(
         const val RIPPLE_FADE_DURATION_MS = 200L
         const val MIN_VIEW_PROGRESS = 0.0
         const val MAX_VIEW_PROGRESS = 1.0
-        const val THIRD_OF_VIEW_PROGRESS = (MAX_VIEW_PROGRESS - MIN_VIEW_PROGRESS) / 3
+        const val HALF_OF_VIEW_PROGRESS = (MAX_VIEW_PROGRESS - MIN_VIEW_PROGRESS) / 2
         private val THUMB_POS: Property<ThreeSwitcher, Float> =
             object : Property<ThreeSwitcher, Float>(Float::class.java, "progress") {
                 override fun get(switch: ThreeSwitcher): Float {
@@ -800,11 +802,10 @@ class ThreeSwitcher @JvmOverloads constructor(
     enum class State(
         @FloatRange(from = MIN_VIEW_PROGRESS, to = MAX_VIEW_PROGRESS) val maxProgress: Float
     ) {
-        LEFT(THIRD_OF_VIEW_PROGRESS.toFloat()),
-        CENTER((2 * THIRD_OF_VIEW_PROGRESS).toFloat()),
+        LEFT(HALF_OF_VIEW_PROGRESS.toFloat()),
         RIGHT(MAX_VIEW_PROGRESS.toFloat());
 
-        val medianProgress: Float = (maxProgress - THIRD_OF_VIEW_PROGRESS / 2).toFloat()
+        val medianProgress: Float = (maxProgress - HALF_OF_VIEW_PROGRESS / 2).toFloat()
 
         companion object {
             fun fromProgress(

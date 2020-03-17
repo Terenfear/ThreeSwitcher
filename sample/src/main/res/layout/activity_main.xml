@@ -32,15 +32,6 @@
         android:text="left"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/text"
-        app:layout_constraintEnd_toStartOf="@id/centerBtn"/>
-
-    <Button
-        android:id="@+id/centerBtn"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="center"
-        app:layout_constraintTop_toBottomOf="@id/text"
-        app:layout_constraintStart_toEndOf="@id/leftBtn"
         app:layout_constraintEnd_toStartOf="@id/rightBtn"/>
 
     <Button
@@ -49,7 +40,7 @@
         android:layout_height="wrap_content"
         android:text="right"
         app:layout_constraintTop_toBottomOf="@id/text"
-        app:layout_constraintStart_toEndOf="@id/centerBtn"
+        app:layout_constraintStart_toEndOf="@id/leftBtn"
         app:layout_constraintEnd_toEndOf="parent"/>
 
     <Button
@@ -58,16 +49,7 @@
         android:layout_height="wrap_content"
         android:text="left no event"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/centerBtn"
-        app:layout_constraintEnd_toStartOf="@id/centerNEBtn"/>
-
-    <Button
-        android:id="@+id/centerNEBtn"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="center no event"
-        app:layout_constraintTop_toBottomOf="@id/centerBtn"
-        app:layout_constraintStart_toEndOf="@id/leftNEBtn"
+        app:layout_constraintTop_toBottomOf="@id/leftBtn"
         app:layout_constraintEnd_toStartOf="@id/rightNEBtn"/>
 
     <Button
@@ -75,8 +57,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="right no event"
-        app:layout_constraintTop_toBottomOf="@id/centerBtn"
-        app:layout_constraintStart_toEndOf="@id/centerNEBtn"
+        app:layout_constraintTop_toBottomOf="@id/leftBtn"
+        app:layout_constraintStart_toEndOf="@id/leftNEBtn"
         app:layout_constraintEnd_toEndOf="parent"/>
 
     <Button
@@ -85,16 +67,7 @@
         android:layout_height="wrap_content"
         android:text="left immed"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/centerNEBtn"
-        app:layout_constraintEnd_toStartOf="@id/centerImBtn"/>
-
-    <Button
-        android:id="@+id/centerImBtn"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="center immed"
-        app:layout_constraintTop_toBottomOf="@id/centerNEBtn"
-        app:layout_constraintStart_toEndOf="@id/leftImBtn"
+        app:layout_constraintTop_toBottomOf="@id/leftNEBtn"
         app:layout_constraintEnd_toStartOf="@id/rightImBtn"/>
 
     <Button
@@ -102,8 +75,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="right immed"
-        app:layout_constraintTop_toBottomOf="@id/centerNEBtn"
-        app:layout_constraintStart_toEndOf="@id/centerImBtn"
+        app:layout_constraintTop_toBottomOf="@id/leftNEBtn"
+        app:layout_constraintStart_toEndOf="@id/leftImBtn"
         app:layout_constraintEnd_toEndOf="parent"/>
 
     <Button
@@ -112,16 +85,7 @@
         android:layout_height="wrap_content"
         android:text="left ne immed"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/centerImBtn"
-        app:layout_constraintEnd_toStartOf="@id/centerNEImBtn"/>
-
-    <Button
-        android:id="@+id/centerNEImBtn"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="center ne immed"
-        app:layout_constraintTop_toBottomOf="@id/centerImBtn"
-        app:layout_constraintStart_toEndOf="@id/leftNEImBtn"
+        app:layout_constraintTop_toBottomOf="@id/leftImBtn"
         app:layout_constraintEnd_toStartOf="@id/rightNEImBtn"/>
 
     <Button
@@ -129,8 +93,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="right ne immed"
-        app:layout_constraintTop_toBottomOf="@id/centerImBtn"
-        app:layout_constraintStart_toEndOf="@id/centerNEImBtn"
+        app:layout_constraintTop_toBottomOf="@id/leftImBtn"
+        app:layout_constraintStart_toEndOf="@id/leftNEImBtn"
         app:layout_constraintEnd_toEndOf="parent"/>
 
     <me.terenfear.threeswitcher.ThreeSwitcher
@@ -139,23 +103,22 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="70dp"
         android:elevation="5dp"
-        app:tw_textLeft="WEEK"
-        app:tw_textCenter="MONTH"
-        app:tw_textRight="ALL TIME"
-        app:tw_state="center"
+        app:tw_textLeft="Discovery"
+        app:tw_textRight="Contacts"
+        app:tw_state="left"
         app:tw_textMarginLeft="18dp"
         app:tw_textMarginRight="18dp"
         app:tw_textMarginTop="9dp"
         app:tw_textMarginBottom="9dp"
         app:tw_cornersRadius="18dp"
-        app:tw_shadowRadius="5dp"
+        app:tw_shadowRadius="0dp"
         app:tw_textSize="16sp"
-        app:tw_trackColor="#ebecee"
-        app:tw_thumbColor="@android:color/white"
-        app:tw_shadowColor="#1d000000"
+        app:tw_trackColor="#ffffff"
+        app:tw_thumbColorStart="#000"
+        app:tw_thumbColorEnd="#01ae5e"
         app:tw_textColor="#a8afb4"
-        app:tw_rippleColor="#4DFF7208"
-        app:tw_textColorHighlighted="#ff7208"
+        app:tw_rippleColor="#3301AE5E"
+        app:tw_textColorHighlighted="#FFFFFF"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />

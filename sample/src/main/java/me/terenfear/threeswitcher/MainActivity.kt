@@ -11,7 +11,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        threeSwitcher.setTypeface(Typeface.createFromAsset(assets, "fonts/Montserrat-Bold.ttf"))
+        threeSwitcher.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL))
 
         text.text = "From initial view state: ${threeSwitcher.state}"
         threeSwitcher.onStateChangedListener = { v, s ->
@@ -25,18 +25,12 @@ class MainActivity : AppCompatActivity() {
         leftBtn.setOnClickListener {
             threeSwitcher.setState(ThreeSwitcher.State.LEFT)
         }
-        centerBtn.setOnClickListener {
-            threeSwitcher.setState(ThreeSwitcher.State.CENTER)
-        }
         rightBtn.setOnClickListener {
             threeSwitcher.setState(ThreeSwitcher.State.RIGHT)
         }
 
         leftNEBtn.setOnClickListener {
             threeSwitcher.setStateNoEvent(ThreeSwitcher.State.LEFT)
-        }
-        centerNEBtn.setOnClickListener {
-            threeSwitcher.setStateNoEvent(ThreeSwitcher.State.CENTER)
         }
         rightNEBtn.setOnClickListener {
             threeSwitcher.setStateNoEvent(ThreeSwitcher.State.RIGHT)
@@ -45,18 +39,12 @@ class MainActivity : AppCompatActivity() {
         leftImBtn.setOnClickListener {
             threeSwitcher.setStateImmediately(ThreeSwitcher.State.LEFT)
         }
-        centerImBtn.setOnClickListener {
-            threeSwitcher.setStateImmediately(ThreeSwitcher.State.CENTER)
-        }
         rightImBtn.setOnClickListener {
             threeSwitcher.setStateImmediately(ThreeSwitcher.State.RIGHT)
         }
 
         leftNEImBtn.setOnClickListener {
             threeSwitcher.setStateNoEventImmediately(ThreeSwitcher.State.LEFT)
-        }
-        centerNEImBtn.setOnClickListener {
-            threeSwitcher.setStateNoEventImmediately(ThreeSwitcher.State.CENTER)
         }
         rightNEImBtn.setOnClickListener {
             threeSwitcher.setStateNoEventImmediately(ThreeSwitcher.State.RIGHT)
